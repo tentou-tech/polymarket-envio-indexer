@@ -1,5 +1,6 @@
 import { UmaSportsOracle, Game } from "generated";
 import type { handlerContext, Market } from "generated";
+import { MarketType_t } from "generated/src/db/Enums.gen";
 
 // Helper: fetch existing game, log and return null if missing.
 async function getAndSetGame(
@@ -100,7 +101,7 @@ UmaSportsOracle.GameUnpaused.handler(async ({ event, context }) => {
 });
 
 // Market Related Handlers
-function getMarketType(marketTypeId: number): string {
+function getMarketType(marketTypeId: number): MarketType_t {
   if (marketTypeId === 0) {
     return "moneyline";
   } else if (marketTypeId === 1) {

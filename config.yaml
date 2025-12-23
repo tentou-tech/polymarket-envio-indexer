@@ -40,6 +40,22 @@ networks:
           - event: MarketUnpaused
           - event: MarketResolved
           - event: MarketEmergencyResolved
+      - name: Exchange
+        address: [
+            0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E,
+            0xC5d563A36AE78145C45a50134d48A1215220f80a,
+          ] # Exchange
+        handler: src/OrderbookHandlers/Exchange.ts
+        abi_file_path: src/abis/Exchange.json
+        start_block: 33605403
+        events:
+          - event: OrderFilled
+            field_selection: &tx_hash_only
+              transaction_fields:
+                - hash
+          - event: OrdersMatched
+            field_selection: *tx_hash_only
+          - event: TokenRegistered
 
 unordered_multichain_mode: true
 preload_handlers: true
