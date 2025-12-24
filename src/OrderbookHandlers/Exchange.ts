@@ -195,23 +195,26 @@ Exchange.OrdersMatched.handler(async ({ event, context }) => {
 Exchange.TokenRegistered.handler(async ({ event, context }) => {
   const { token0, token1, conditionId } = event.params;
 
-  let token0Entity = await context.MarketData.get(token0.toString());
-  if (!token0Entity) {
-    const newToken0Entity: MarketData_t = {
-      id: token0.toString(),
-      condition: conditionId,
-      outcomeIndex: undefined,
-    };
-    context.MarketData.set(newToken0Entity);
-  }
+  await ensureMarketData(context, token0.toString(), conditionId, undefined);
 
-  let token1Entity = await context.MarketData.get(token1.toString());
-  if (!token1Entity) {
-    const newToken1Entity: MarketData_t = {
-      id: token1.toString(),
-      condition: conditionId,
-      outcomeIndex: BigInt(1),
-    };
-    context.MarketData.set(newToken1Entity);
-  }
+  await ensureMarketData(context, token1.toString(), conditionId, 1n);
 });
+
+// -----------------------------
+// Helpers
+// -----------------------------
+async function ensureMarketData(
+  context: any,
+  id: string,
+  conditionId: string,
+  outcomeIndex?: bigint
+) {
+  const existing = await context.MarketData.get(id);
+  if (existing) return;
+
+  context.MarketData.set({
+    id,
+    condition: conditionId,
+    outcomeIndex,
+  });
+}
