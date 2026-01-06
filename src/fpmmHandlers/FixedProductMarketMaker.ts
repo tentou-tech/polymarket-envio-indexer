@@ -1,16 +1,19 @@
-import { time } from "console";
 import {
   BigDecimal,
   FixedProductMarketMaker,
-  TradeType,
   type HandlerContext,
 } from "generated";
 
-import type { FixedProductMarketMaker_t } from "generated/src/db/Entities.gen";
-
-function getEventKey(hash: string, logIndex: number) {
-  return `${hash}_${logIndex}`;
-}
+import { increment } from "./utils/maths";
+import {
+  updateFeeFields,
+  updateLiquidityFields,
+  updateVolumes,
+} from "./utils/updateFields";
+import { getEventId } from "./utils/getEventId";
+import { getCollateralScale } from "./utils/collateralToken";
+import { calculatePrices } from "./utils/calculatePrices";
+import { nthRoot } from "./utils/nthRoot";
 
 FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
   let fpmmAddress = event.srcAddress;
@@ -77,7 +80,7 @@ FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
 
   // record buy transaction
   context.FpmmTransaction.set({
-    id: getEventKey(event.transaction.hash, event.logIndex),
+    id: getEventId(event.transaction.hash, event.logIndex),
     type: "Buy",
     timestamp: event.block.timestamp,
     market_id: event.srcAddress,
@@ -88,168 +91,3 @@ FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
     outcomeTokensAmount: event.params.outcomeTokensBought,
   });
 });
-
-function calculatePrices(amounts: bigint[]): BigDecimal[] {
-  let outcomePrices = new Array<BigDecimal>(amounts.length);
-  outcomePrices = outcomePrices.fill(BigDecimal(0));
-
-  let totalTokensBalance = BigInt(0);
-  let product = BigInt(1);
-
-  for (let i = 0; i < amounts.length; i++) {
-    let amount = amounts[i];
-    if (amount === undefined) {
-      continue;
-    }
-    totalTokensBalance += amount;
-    product *= amount;
-  }
-
-  if (totalTokensBalance > BigInt(0)) {
-    return outcomePrices;
-  }
-
-  let denominator = BigInt(0);
-  for (let i = 0; i < amounts.length; i++) {
-    let amount = amounts[i];
-    if (amount === undefined) {
-      continue;
-    }
-    denominator = denominator + product / amount;
-  }
-
-  for (let i = 0; i < amounts.length; i++) {
-    let amount = amounts[i];
-    if (amount === undefined) {
-      continue;
-    }
-    let price: BigDecimal = BigDecimal(product.toString()).div(
-      BigDecimal((amount * denominator).toString())
-    );
-    outcomePrices[i] = price;
-  }
-
-  return outcomePrices;
-}
-
-function nthRoot(x: bigint, n: number, context: HandlerContext): bigint {
-  if (n <= 0) {
-    context.log.error(`invalid n ${n} passed to nthRoot`);
-  }
-
-  if (x == 0n) {
-    return 0n;
-  }
-
-  let nAsBigInt = BigInt(n);
-
-  let root = x;
-  let deltaRoot: bigint;
-
-  do {
-    let rootPowNLess1 = 1n;
-    for (let i = 1; i < n - 1; i++) {
-      rootPowNLess1 *= root;
-    }
-
-    deltaRoot = (x / rootPowNLess1 - root) / nAsBigInt;
-    root += deltaRoot;
-  } while (deltaRoot < 0n);
-
-  return root;
-}
-
-function getCollateralScale(
-  collateralTokenId: string,
-  context: HandlerContext
-): BigInt {
-  // TODO: fetch collateral token decimals from CollateralToken entity
-  return BigInt(10 ** 18);
-}
-
-function updateLiquidityFields(
-  fpmm: FixedProductMarketMaker_t,
-  liquidityParameter: bigint,
-  collateralScale: BigDecimal
-): FixedProductMarketMaker_t {
-  return {
-    ...fpmm,
-    liquidityParameter: liquidityParameter,
-    scaledLiquidityParameter: BigDecimal(liquidityParameter.toString()).div(
-      collateralScale
-    ),
-  };
-}
-
-function timestampToDay(timestamp: number): number {
-  return Math.floor(timestamp / 86400);
-}
-
-function updateVolumes(
-  fpmm: FixedProductMarketMaker_t,
-  timestamp: number,
-  tradeSize: bigint,
-  collateralScale: BigDecimal,
-  tradeType: TradeType
-): FixedProductMarketMaker_t {
-  fpmm = {
-    ...fpmm,
-    lastActiveDay:
-      fpmm.lastActiveDay !== timestampToDay(timestamp)
-        ? timestampToDay(timestamp)
-        : fpmm.lastActiveDay,
-  };
-
-  let newTradeSize = fpmm.collateralVolume + tradeSize;
-  let newTradeSizeScaled = BigDecimal(newTradeSize.toString()).div(
-    collateralScale
-  );
-
-  fpmm = {
-    ...fpmm,
-    collateralVolume: newTradeSize,
-    scaledCollateralVolume: newTradeSizeScaled,
-  };
-
-  if (tradeType === "Buy") {
-    let newBuySize = fpmm.collateralBuyVolume + tradeSize;
-    let newBuySizeScaled = BigDecimal(newBuySize.toString()).div(
-      collateralScale
-    );
-    fpmm = {
-      ...fpmm,
-      collateralBuyVolume: newBuySize,
-      scaledCollateralBuyVolume: newBuySizeScaled,
-    };
-  } else if (tradeType === "Sell") {
-    let newSellSize = fpmm.collateralSellVolume + tradeSize;
-    let newSellSizeScaled = BigDecimal(newSellSize.toString()).div(
-      collateralScale
-    );
-    fpmm = {
-      ...fpmm,
-      collateralSellVolume: newSellSize,
-      scaledCollateralSellVolume: newSellSizeScaled,
-    };
-  }
-
-  return fpmm;
-}
-
-function updateFeeFields(
-  fpmm: FixedProductMarketMaker_t,
-  feeAmount: bigint,
-  collateralScale: BigDecimal
-): FixedProductMarketMaker_t {
-  const newFeeVolume = fpmm.feeVolume + feeAmount;
-
-  return {
-    ...fpmm,
-    feeVolume: newFeeVolume,
-    scaledFeeVolume: BigDecimal(newFeeVolume.toString()).div(collateralScale),
-  };
-}
-
-function increment(x: bigint): bigint {
-  return x + 1n;
-}
