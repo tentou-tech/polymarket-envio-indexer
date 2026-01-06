@@ -321,3 +321,29 @@ type FpmmPoolMembership {
   "Amount of liquidity tokens owned by funder"
   amount: BigInt!
 }
+
+enum TradeType {
+  Buy
+  Sell
+}
+
+type FpmmTransaction {
+  "Transaction Hash _ Log Index"
+  id: ID!
+  "Buy or Sell transaction"
+  type: TradeType!
+  "Timestamp at which transaction occurred"
+  timestamp: Int!
+  "Market which transaction is interacting with"
+  market: FixedProductMarketMaker!
+  "Account performing transaction"
+  user: String!
+  "Amount of collateral in trade"
+  tradeAmount: BigInt!
+  "Amount of collateral paid in fees"
+  feeAmount: BigInt!
+  "Index of outcome token being bought or sold"
+  outcomeIndex: BigInt!
+  "Amount of outcome tokens being bought or sold"
+  outcomeTokensAmount: BigInt!
+}

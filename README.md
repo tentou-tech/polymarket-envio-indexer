@@ -41,6 +41,10 @@ pnpm codegen
 - [ ] Migrate all subgraphs (work in progress)
 - [ ] Validate data against the Polymarket indexer
 
+### Smaller Tasks
+
+- [ ] Effects for fetching details about Collateral Token
+- [ ] Remove hardcoded return value from `getCollateralScale` in FPMM handler
 
 ## Notes
 

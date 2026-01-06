@@ -95,6 +95,9 @@ chains:
           - event: FPMMFundingAdded
           - event: FPMMFundingRemoved
           - event: FPMMBuy
+            field_selection: &tx_hash_only
+              transaction_fields:
+                - hash
           - event: FPMMSell
           - event: Transfer
 address_format: lowercase
