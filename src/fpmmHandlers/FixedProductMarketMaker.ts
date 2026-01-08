@@ -6,7 +6,7 @@ import {
   updateLiquidityFields,
   updateVolumes,
 } from "./utils/updateFields";
-import { getEventId } from "./utils/getEventId";
+import { getEventId } from "../common/utils/getEventId";
 import { getCollateralScale } from "./utils/collateralToken";
 import { calculatePrices } from "./utils/calculatePrices";
 import { nthRoot } from "./utils/nthRoot";

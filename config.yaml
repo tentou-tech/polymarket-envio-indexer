@@ -63,8 +63,13 @@ chains:
         start_block: 4023686
         events:
           - event: PositionSplit
+            field_selection: &tx_hash_only
+              transaction_fields:
+                - hash
           - event: PositionsMerge
+            field_selection: *tx_hash_only
           - event: PayoutRedemption
+            field_selection: *tx_hash_only
           - event: ConditionPreparation
       - name: NegRiskAdapter
         address: 0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296
@@ -93,9 +98,7 @@ chains:
         abi_file_path: src/abis/FixedProductMarketMaker.json
         events:
           - event: FPMMFundingAdded
-            field_selection: &tx_hash_only
-              transaction_fields:
-                - hash
+            field_selection: *tx_hash_only
           - event: FPMMFundingRemoved
             field_selection: *tx_hash_only
           - event: FPMMBuy

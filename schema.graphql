@@ -380,3 +380,48 @@ type FpmmFundingAddition {
   "Liquidity shares minted to funder"
   sharesMinted: BigInt!
 }
+
+#######################################################
+# Activity Related Entities
+#######################################################
+
+type Split {
+  "Transaction Hash"
+  id: ID!
+  "Timestamp at which split occurred"
+  timestamp: Int!
+  "Address which is performing this split"
+  stakeholder: String!
+  "Condition on which split is occuring"
+  condition: String!
+  "The amount of collateral/outcome tokens being split"
+  amount: BigInt!
+}
+
+type Merge {
+  "Transaction Hash"
+  id: ID!
+  "Timestamp at which merge occurred"
+  timestamp: Int!
+  "Address which is performing this merge"
+  stakeholder: String!
+  "Token which is collateralising positions being merged"
+  condition: String!
+  "The amount of collateral/outcome tokens being merged"
+  amount: BigInt!
+}
+
+type Redemption {
+  "Transaction Hash"
+  id: ID!
+  "Timestamp at which redemption occurred"
+  timestamp: Int!
+  "Address which is redeeming these outcomes"
+  redeemer: String!
+  "Condition on which redemption is occuring"
+  condition: String!
+  "Outcomes which are being redeemed"
+  indexSets: [BigInt!]!
+  "The amount of collateral being claimed"
+  payout: BigInt!
+}

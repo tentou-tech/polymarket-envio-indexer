@@ -46,7 +46,10 @@ pnpm codegen
 - [ ] Effects for fetching details about Collateral Token
 - [ ] Remove hardcoded return value from `getCollateralScale` in FPMM handler
 - [ ] Debug `TradeType` import in `updatedFields.ts`
+- [ ] `getPositionId` implementation (file: `ConditionalTokens.ts`)
 
 ## Notes
 
 This indexer is a work in progress, and some parts of the logic are still being migrated. Data validation has been done for a few subgraphs so far, and we’ll be expanding correctness checks after the main migration is finished.
+
+- The `polymarket-subgraph` repo tracks `ConditionalTokens` event multiple times which different event handlers but in our case we have merged all those event handlers into one.

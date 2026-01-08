@@ -1,22 +1,45 @@
 import { ConditionalTokens, type HandlerContext } from "generated";
 import { updateOpenInterest } from "./utils";
+import { indexer } from "generated";
+import { getEventId } from "../common/utils/getEventId";
 
 ConditionalTokens.PositionSplit.handler(async ({ event, context }) => {
   // check if condition exists if not skip it
   const { amount, collateralToken, conditionId } = event.params;
   const condition = await context.Condition.get(conditionId);
 
-  if (!condition) return;
+  if (!condition) {
+    context.log.error(
+      `Failed to update market position: condition ${conditionId} not found`
+    );
+    return;
+  }
 
   // only track USDC and ignore rest which will be track in neg risk markets
+  if (collateralToken == indexer.chains[137].USDC.addresses[0]) {
+    // update open interest, this split increases the open interest
+    await updateOpenInterest(amount, conditionId, context);
+  }
+
+  const stakeholder = event.params.stakeholder;
+  const fpmm = await context.FixedProductMarketMaker.get(stakeholder);
+
+  if (fpmm != undefined) return;
   if (
-    collateralToken !=
-    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174".toLowerCase()
+    [
+      ...indexer.chains[137].NegRiskAdapter.addresses,
+      ...indexer.chains[137].Exchange.addresses,
+    ].includes(stakeholder)
   )
     return;
-
-  // update open interest, this split increases the open interest
-  await updateOpenInterest(amount, conditionId, context);
+  // update split entity
+  context.Split.set({
+    id: getEventId(event.transaction.hash, event.logIndex),
+    timestamp: event.block.timestamp,
+    stakeholder: stakeholder,
+    condition: conditionId,
+    amount: event.params.amount,
+  });
 });
 
 ConditionalTokens.PositionsMerge.handler(async ({ event, context }) => {
@@ -24,17 +47,38 @@ ConditionalTokens.PositionsMerge.handler(async ({ event, context }) => {
   const { amount, collateralToken, conditionId } = event.params;
   const condition = await context.Condition.get(conditionId);
 
-  if (!condition) return;
+  if (!condition) {
+    context.log.error(
+      `Failed to update market position: condition ${conditionId} not found`
+    );
+    return;
+  }
 
   // only track USDC and ignore rest which will be track in neg risk markets
+  if (collateralToken == indexer.chains[137].USDC.addresses[0]) {
+    // update open interest, this merge decreases the open interest
+    await updateOpenInterest(-amount, conditionId, context);
+  }
+
+  const stakeholder = event.params.stakeholder;
+  const fpmm = await context.FixedProductMarketMaker.get(stakeholder);
+
+  if (fpmm != undefined) return;
   if (
-    collateralToken !=
-    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174".toLowerCase()
+    [
+      ...indexer.chains[137].NegRiskAdapter.addresses,
+      ...indexer.chains[137].Exchange.addresses,
+    ].includes(stakeholder)
   )
     return;
 
-  // update open interest, this merge decreases the open interest
-  await updateOpenInterest(-amount, conditionId, context);
+  context.Merge.set({
+    id: getEventId(event.transaction.hash, event.logIndex),
+    timestamp: event.block.timestamp,
+    stakeholder: stakeholder,
+    condition: conditionId,
+    amount: event.params.amount,
+  });
 });
 
 ConditionalTokens.PayoutRedemption.handler(async ({ event, context }) => {
@@ -42,16 +86,33 @@ ConditionalTokens.PayoutRedemption.handler(async ({ event, context }) => {
   const { payout, collateralToken, conditionId } = event.params;
   const condition = await context.Condition.get(conditionId);
 
-  if (!condition) return;
+  if (!condition) {
+    context.log.error(
+      `Failed to update market position: condition ${conditionId} not found`
+    );
+    return;
+  }
   // only track USDC and ignore rest which will be track in neg risk markets
+  if (collateralToken == indexer.chains[137].USDC.addresses[0]) {
+    // update open interest, this redemption decreases the open interest
+    await updateOpenInterest(-payout, conditionId, context);
+  }
+
   if (
-    collateralToken !=
-    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174".toLowerCase()
+    [...indexer.chains[137].NegRiskAdapter.addresses].includes(
+      event.params.redeemer
+    )
   )
     return;
 
-  // update open interest, this redemption decreases the open interest
-  await updateOpenInterest(-payout, conditionId, context);
+  context.Redemption.set({
+    id: getEventId(event.transaction.hash, event.logIndex),
+    timestamp: event.block.timestamp,
+    redeemer: event.params.redeemer,
+    condition: conditionId,
+    indexSets: event.params.indexSets,
+    payout: event.params.payout,
+  });
 });
 
 ConditionalTokens.ConditionPreparation.handler(async ({ event, context }) => {
@@ -62,4 +123,12 @@ ConditionalTokens.ConditionPreparation.handler(async ({ event, context }) => {
   context.Condition.set({
     id: conditionId,
   });
+
+  // Modify based on Acitivity Subgraph logic
+  const negRisk =
+    event.params.oracle == indexer.chains[137].NegRiskAdapter.addresses[0];
+
+  for (let i = 0; i < 2; i++) {
+    // TODO: add getPositionId implementation
+  }
 });
