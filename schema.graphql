@@ -442,3 +442,12 @@ type NegRiskConversion {
   "The number of questions at the time of conversion"
   questionCount: Int!
 }
+
+type Position @entity {
+  "ERC1155 TokenID of the CTF Asset"
+  id: ID!
+  "Condition that the token is linked to"
+  condition: String!
+  "Outcome Index"
+  outcomeIndex: BigInt!
+}

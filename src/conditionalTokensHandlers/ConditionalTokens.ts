@@ -2,6 +2,7 @@ import { ConditionalTokens, type HandlerContext } from "generated";
 import { updateOpenInterest } from "./utils";
 import { indexer } from "generated";
 import { getEventId } from "../common/utils/getEventId";
+import { getPositionId } from "../common/utils/getPositionId";
 
 ConditionalTokens.PositionSplit.handler(async ({ event, context }) => {
   // check if condition exists if not skip it
@@ -129,6 +130,19 @@ ConditionalTokens.ConditionPreparation.handler(async ({ event, context }) => {
     event.params.oracle == indexer.chains[137].NegRiskAdapter.addresses[0];
 
   for (let i = 0; i < 2; i++) {
-    // TODO: add getPositionId implementation
+    const positionId = getPositionId(
+      conditionId as `0x${string}`,
+      i,
+      negRisk
+    ).toString();
+
+    const position = await context.Position.get(positionId);
+    if (position == undefined) {
+      context.Position.set({
+        id: positionId,
+        condition: conditionId,
+        outcomeIndex: BigInt(i),
+      });
+    }
   }
 });

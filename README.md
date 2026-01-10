@@ -47,7 +47,9 @@ pnpm codegen
 - [ ] Effects for fetching details about Collateral Token
 - [ ] Remove hardcoded return value from `getCollateralScale` in FPMM handler
 - [ ] Debug `TradeType` import in `updatedFields.ts`
-- [ ] `getPositionId` implementation (file: `ConditionalTokens.ts`)
+- [x] `getPositionId` implementation (file: `ConditionalTokens.ts`)
+- [ ] understand the use of GlobalUSDCBalance entity used in polymarket subgraph (`USDC.ts`)
+- [ ] Write tests for utility functions like `getPositionId` or `computeProxyWalletAddress`
 
 ## Notes
 
