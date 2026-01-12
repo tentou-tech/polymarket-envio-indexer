@@ -124,3 +124,42 @@ export function indexSetContains(
 
   return (indexSet & (1n << BigInt(index))) !== 0n;
 }
+
+async function getOrCreateUserPosition(
+  context: HandlerContext,
+  user: `0x${string}`,
+  positionId: bigint
+) {
+  return await context.UserPosition.getOrCreate({
+    id: `${user}-${positionId.toString()}`,
+    user: user,
+    tokenId: positionId,
+    avgPrice: 0n,
+    amount: 0n,
+    realizedPnl: 0n,
+    totalBought: 0n,
+  });
+}
+
+export async function updateUserPositionWithBuy(
+  context: HandlerContext,
+  user: `0x${string}`,
+  positionId: bigint,
+  price: bigint,
+  amount: bigint
+) {
+  const userPosition = await getOrCreateUserPosition(context, user, positionId);
+
+  if (amount > 0n) {
+    const numerator =
+      userPosition.avgPrice * userPosition.amount + price * amount;
+    const denominator = userPosition.amount + amount;
+
+    context.UserPosition.set({
+      ...userPosition,
+      avgPrice: numerator / denominator,
+      amount: userPosition.amount + amount,
+      totalBought: userPosition.totalBought + amount,
+    });
+  }
+}

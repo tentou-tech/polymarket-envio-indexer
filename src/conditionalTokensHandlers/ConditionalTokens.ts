@@ -1,8 +1,9 @@
 import { ConditionalTokens, type HandlerContext } from "generated";
-import { updateOpenInterest } from "./utils";
+import { updateOpenInterest, updateUserPositionWithBuy } from "./utils";
 import { indexer } from "generated";
 import { getEventId } from "../common/utils/getEventId";
 import { getPositionId } from "../common/utils/getPositionId";
+import { FIFTY_CENTS } from "./constants";
 
 ConditionalTokens.PositionSplit.handler(async ({ event, context }) => {
   // check if condition exists if not skip it
@@ -11,7 +12,7 @@ ConditionalTokens.PositionSplit.handler(async ({ event, context }) => {
 
   if (!condition) {
     context.log.error(
-      `Failed to update market position: condition ${conditionId} not found`
+      `Failed to find condition while handling PositionSplit: condition ${conditionId} not found`
     );
     return;
   }
@@ -26,8 +27,6 @@ ConditionalTokens.PositionSplit.handler(async ({ event, context }) => {
   const stakeholder = event.params.stakeholder;
   const fpmm = await context.FixedProductMarketMaker.get(stakeholder);
 
-  // don't track merges within the market makers
-  if (fpmm != undefined) return;
   // don't track merges from neg risk adapter and exchange
   // neg risk adpater merges are tracked in it's own handler
   if (
@@ -37,6 +36,30 @@ ConditionalTokens.PositionSplit.handler(async ({ event, context }) => {
     ].includes(stakeholder)
   )
     return;
+
+  // here we update PNL
+  for (let i = 0; i < 2; i++) {
+    const positionId = condition.positionIds[i];
+
+    if (positionId === undefined) {
+      context.log.error(
+        `Failed to update user position: positionId for condition ${conditionId} and outcomeIndex ${i} not found`
+      );
+      continue;
+    }
+
+    // update user position with buy
+    await updateUserPositionWithBuy(
+      context,
+      stakeholder,
+      positionId,
+      FIFTY_CENTS,
+      amount
+    );
+  }
+
+  // don't track merges within the market makers
+  if (fpmm != undefined) return;
   // update split entity
   context.Split.set({
     id: getEventId(event.transaction.hash, event.logIndex),
@@ -134,6 +157,9 @@ ConditionalTokens.ConditionPreparation.handler(async ({ event, context }) => {
 
   context.Condition.set({
     id: conditionId,
+    positionIds: [],
+    payoutNumerators: [],
+    payoutDenominator: 0n,
   });
 
   // following part is extra in activity subgraph and not present in Open Interest subgraph

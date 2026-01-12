@@ -202,6 +202,11 @@ type OrdersMatchedGlobal {
 type Condition {
   "conditionId"
   id: ID!
+  "tokenIds"
+  positionIds: [BigInt!]!
+  "payouts"
+  payoutNumerators: [BigInt!]!
+  payoutDenominator: BigInt!
 }
 
 # Neg Risk Events/Markets
@@ -472,4 +477,26 @@ type FeeRefundedEntity {
   "The fee amount charged by the fee module"
   feeCharged: BigInt!
   negRisk: Boolean!
+}
+
+########################################################
+# PNL related entities
+########################################################
+
+# User Token Position
+type UserPosition {
+  "User Address + Token ID"
+  id: ID!
+  "User Address"
+  user: String!
+  "Token ID"
+  tokenId: BigInt!
+  "amount of token the user holds"
+  amount: BigInt!
+  "the avg price the user bought the token"
+  avgPrice: BigInt!
+  "realized profits - losses"
+  realizedPnl: BigInt!
+  "total amount of token bought"
+  totalBought: BigInt!
 }
