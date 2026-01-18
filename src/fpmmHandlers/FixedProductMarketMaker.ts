@@ -11,14 +11,19 @@ import { getCollateralScale } from "./utils/collateralToken";
 import { calculatePrices } from "./utils/calculatePrices";
 import { nthRoot } from "./utils/nthRoot";
 import type { FpmmFundingAddition_t } from "generated/src/db/Entities.gen";
-import { FpmmFundingAddition } from "generated/src/db/Entities.res.mjs";
+import { COLLATERAL_SCALE } from "../conditionalTokensHandlers/constants";
+import {
+  updateUserPositionWithBuy,
+  updateUserPositionWithSell,
+} from "../conditionalTokensHandlers/utils";
+import { parseFundingAddedSendBack } from "./utils/pnlUtils";
 
 FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
   let fpmmAddress = event.srcAddress;
   let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
   if (!fpmm) {
     context.log.error(
-      `cannot buy: FixedProductMarketMaker instance for ${fpmmAddress} not found`
+      `cannot buy: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
     );
     return;
   }
@@ -26,7 +31,7 @@ FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
   let oldAmounts = fpmm.outcomeTokenAmounts;
   let investmentAmountMinusFees =
     event.params.investmentAmount - event.params.feeAmount;
-  let outcomeIndex = Number(event.params.outcomeIndex);
+  const outcomeIndex = Number(event.params.outcomeIndex);
 
   let newAmounts = new Array<bigint>(oldAmounts.length);
   let amountsProduct = BigInt(1);
@@ -63,7 +68,7 @@ FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
     event.block.timestamp,
     event.params.investmentAmount,
     collateralScaleDec,
-    "Buy"
+    "Buy",
   );
 
   fpmm = updateFeeFields(fpmm, event.params.feeAmount, collateralScaleDec);
@@ -88,6 +93,51 @@ FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
     outcomeIndex: BigInt(outcomeIndex),
     outcomeTokensAmount: event.params.outcomeTokensBought,
   });
+
+  // https://github.com/Polymarket/polymarket-subgraph/blob/main/pnl-subgraph/src/FixedProductMarketMakerMapping.ts#L24-L52
+
+  if (event.params.outcomeTokensBought == 0n) {
+    context.log.warn(
+      `Zero outcome tokens bought in FPMMBuy event at tx ${event.transaction.hash}`,
+    );
+
+    return;
+  }
+
+  const conditionId = fpmm.conditions[0];
+  if (!conditionId) {
+    context.log.error(
+      `No condition found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+  const condition = await context.Condition.get(conditionId);
+  if (!condition) {
+    context.log.error(
+      `Condition ${conditionId} not found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  const positionId = condition.positionIds[outcomeIndex];
+  if (!positionId) {
+    context.log.error(
+      `No position found for outcome index ${outcomeIndex} in condition ${conditionId} for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  const price =
+    (event.params.investmentAmount * COLLATERAL_SCALE) /
+    event.params.outcomeTokensBought;
+
+  updateUserPositionWithBuy(
+    context,
+    event.params.buyer,
+    positionId,
+    price,
+    event.params.outcomeTokensBought,
+  );
 });
 
 FixedProductMarketMaker.FPMMSell.handler(async ({ event, context }) => {
@@ -95,7 +145,7 @@ FixedProductMarketMaker.FPMMSell.handler(async ({ event, context }) => {
   let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
   if (!fpmm) {
     context.log.error(
-      `cannot sell: FixedProductMarketMaker instance for ${fpmmAddress} not found`
+      `cannot sell: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
     );
     return;
   }
@@ -103,7 +153,7 @@ FixedProductMarketMaker.FPMMSell.handler(async ({ event, context }) => {
   let oldAmounts = fpmm.outcomeTokenAmounts;
   let returnAmountPlusFees = event.params.returnAmount + event.params.feeAmount;
 
-  let outcomeIndex = Number(event.params.outcomeIndex);
+  const outcomeIndex = Number(event.params.outcomeIndex);
   let newAmounts = new Array<bigint>(oldAmounts.length);
   let amountsProduct = BigInt(1);
 
@@ -138,7 +188,7 @@ FixedProductMarketMaker.FPMMSell.handler(async ({ event, context }) => {
     event.block.timestamp,
     event.params.returnAmount,
     collateralScaleDec,
-    "Sell"
+    "Sell",
   );
 
   fpmm = updateFeeFields(fpmm, event.params.feeAmount, collateralScaleDec);
@@ -163,6 +213,51 @@ FixedProductMarketMaker.FPMMSell.handler(async ({ event, context }) => {
     outcomeIndex: BigInt(outcomeIndex),
     outcomeTokensAmount: event.params.outcomeTokensSold,
   });
+
+  // https://github.com/Polymarket/polymarket-subgraph/blob/main/pnl-subgraph/src/FixedProductMarketMakerMapping.ts#L64-L91
+
+  if (event.params.outcomeTokensSold == 0n) {
+    context.log.warn(
+      `Zero outcome tokens sold in FPMMSell event at tx ${event.transaction.hash}`,
+    );
+
+    return;
+  }
+
+  const conditionId = fpmm.conditions[0];
+  if (!conditionId) {
+    context.log.error(
+      `No condition found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+  const condition = await context.Condition.get(conditionId);
+  if (!condition) {
+    context.log.error(
+      `Condition ${conditionId} not found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  const positionId = condition.positionIds[outcomeIndex];
+  if (!positionId) {
+    context.log.error(
+      `No position found for outcome index ${outcomeIndex} in condition ${conditionId} for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  const price =
+    (event.params.returnAmount * COLLATERAL_SCALE) /
+    event.params.outcomeTokensSold;
+
+  updateUserPositionWithSell(
+    context,
+    event.params.seller,
+    positionId,
+    price,
+    event.params.outcomeTokensSold,
+  );
 });
 
 FixedProductMarketMaker.FPMMFundingRemoved.handler(
@@ -171,7 +266,7 @@ FixedProductMarketMaker.FPMMFundingRemoved.handler(
     let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
     if (!fpmm) {
       context.log.error(
-        `cannot remove funding: FixedProductMarketMaker instance for ${fpmmAddress} not found`
+        `cannot remove funding: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
       );
       return;
     }
@@ -203,7 +298,7 @@ FixedProductMarketMaker.FPMMFundingRemoved.handler(
     let liquidityParameter = nthRoot(
       amountsProduct,
       oldAmounts.length,
-      context
+      context,
     );
     let collateralScale = getCollateralScale(fpmm.collateralToken_id, context);
     let collateralScaleDec = BigDecimal(collateralScale.toString());
@@ -239,7 +334,7 @@ FixedProductMarketMaker.FPMMFundingRemoved.handler(
       collateralRemoved: event.params.collateralRemovedFromFeePool,
       sharesBurnt: event.params.sharesBurnt,
     });
-  }
+  },
 );
 
 FixedProductMarketMaker.FPMMFundingAdded.handler(async ({ event, context }) => {
@@ -247,7 +342,7 @@ FixedProductMarketMaker.FPMMFundingAdded.handler(async ({ event, context }) => {
   let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
   if (!fpmm) {
     context.log.error(
-      `cannot add funding: FixedProductMarketMaker instance for ${fpmmAddress} not found`
+      `cannot add funding: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
     );
     return;
   }
@@ -325,6 +420,71 @@ FixedProductMarketMaker.FPMMFundingAdded.handler(async ({ event, context }) => {
     ...fundingAdditionEntity,
     amountsRefunded: amountsRefunded,
   });
+
+  // https://github.com/Polymarket/polymarket-subgraph/blob/main/pnl-subgraph/src/FixedProductMarketMakerMapping.ts#L111-L163
+
+  const conditionId = fpmm.conditions[0];
+  if (!conditionId) {
+    context.log.error(
+      `No condition found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+  const condition = await context.Condition.get(conditionId);
+  if (!condition) {
+    context.log.error(
+      `Condition ${conditionId} not found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  const [a = 0n, b = 0n] = event.params.amountsAdded ?? [];
+
+  if (a + b === 0n) {
+    context.log.warn(
+      `Zero funding added in FPMMFundingAdded event at tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  const sendbackDetails = parseFundingAddedSendBack(event);
+  const positionId = condition.positionIds[sendbackDetails.outcomeIndex];
+  if (!positionId) {
+    context.log.error(
+      `No position found for outcome index ${sendbackDetails.outcomeIndex} in condition ${conditionId} for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  updateUserPositionWithBuy(
+    context,
+    event.params.funder,
+    positionId,
+    sendbackDetails.price,
+    sendbackDetails.amount,
+  );
+
+  if (event.params.sharesMinted == 0n) {
+    context.log.warn(
+      `Zero shares minted in FPMMFundingAdded event at tx ${event.transaction.hash}`,
+    );
+    return;
+  }
+
+  const totalUSDCSpend = a > b ? a : b;
+  const tokenCost =
+    (sendbackDetails.amount * sendbackDetails.price) / COLLATERAL_SCALE;
+
+  const lpShareCost = totalUSDCSpend - tokenCost;
+  const lpShareprice = (lpShareCost * COLLATERAL_SCALE) / event.params.sharesMinted;
+
+  updateUserPositionWithBuy(
+    context,
+    event.params.funder,
+    BigInt(fpmmAddress), // Using FPMM address as positionId for LP shares
+    lpShareprice,
+    event.params.sharesMinted,
+  );
 });
 
 FixedProductMarketMaker.Transfer.handler(async ({ event, context }) => {
@@ -337,7 +497,7 @@ FixedProductMarketMaker.Transfer.handler(async ({ event, context }) => {
   try {
     if (fromAddress != zeroAddress) {
       let fromMembership = await context.FpmmPoolMembership.getOrThrow(
-        `${fpmmAddress}_${fromAddress}`
+        `${fpmmAddress}_${fromAddress}`,
       );
       context.FpmmPoolMembership.set({
         ...fromMembership,
@@ -346,7 +506,7 @@ FixedProductMarketMaker.Transfer.handler(async ({ event, context }) => {
     }
     if (toAddress != zeroAddress) {
       let toMembership = await context.FpmmPoolMembership.getOrThrow(
-        `${fpmmAddress}_${toAddress}`
+        `${fpmmAddress}_${toAddress}`,
       );
       context.FpmmPoolMembership.set({
         ...toMembership,
