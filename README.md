@@ -35,17 +35,17 @@ pnpm codegen
 - [x] FPMM Subgraph
 - [x] Activity Subgraph
 - [x] Fee Module Subgraph
-- [ ] PNL Subgraph (work in progress)
+- [x] PNL Subgraph
 
 ## Tasks
 
-- [ ] Migrate all subgraphs (work in progress)
-- [ ] Validate data against the Polymarket indexer
+- [x] Migrate all subgraphs
+- [ ] Validate data against the Polymarket indexer (work in progress)
 
 ### Smaller Tasks
 
-- [ ] Effects for fetching details about Collateral Token
-- [ ] Remove hardcoded return value from `getCollateralScale` in FPMM handler
+- [x] Effects for fetching details about Collateral Token
+- [x] Remove hardcoded return value from `getCollateralScale` in FPMM handler
 - [ ] Debug `TradeType` import in `updatedFields.ts`
 - [x] `getPositionId` implementation (file: `ConditionalTokens.ts`)
 - [ ] understand the use of GlobalUSDCBalance entity used in polymarket subgraph (`USDC.ts`)
@@ -60,7 +60,6 @@ This indexer is a work in progress, and some parts of the logic are still being 
 - The `polymarket-subgraph` repo tracks `ConditionalTokens` event multiple times which different event handlers but in our case we have merged all those event handlers into one.
 
 - `activity-subgraph/src/FixedProductMarketMakerFactoryMapping.ts` file is not necessary it is copy that is used in the actiivty subgraph so other event handlers can access the FPMM addresses. We are combining all into a single indexer, we already have that handler.
-
 
 ## Feature Requests
 

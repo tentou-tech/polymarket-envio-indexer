@@ -1,5 +1,9 @@
+import type { TradeType_t } from "generated/src/db/Enums.gen";
 import { COLLATERAL_SCALE } from "../../conditionalTokensHandlers/constants";
-import type { FixedProductMarketMaker_FPMMFundingAdded_event } from "generated";
+import type {
+  Exchange_OrderFilled_event,
+  FixedProductMarketMaker_FPMMFundingAdded_event,
+} from "generated";
 
 export const computeFpmmPrice = (
   amounts: readonly [bigint, bigint],
@@ -43,4 +47,32 @@ export const parseFundingAddedSendBack = (
     price,
     amount,
   };
+};
+
+export type Order = {
+  account: string;
+  side: TradeType_t;
+  baseAmount: bigint;
+  quoteAmount: bigint;
+  positionId: bigint;
+};
+
+export const parseOrderFilled = (event: Exchange_OrderFilled_event): Order => {
+  const side: TradeType_t = event.params.makerAssetId == 0n ? "Buy" : "Sell";
+
+  return side == "Buy"
+    ? {
+        account: event.params.maker,
+        side,
+        baseAmount: event.params.takerAmountFilled,
+        quoteAmount: event.params.makerAmountFilled,
+        positionId: event.params.takerAssetId,
+      }
+    : {
+        account: event.params.taker,
+        side,
+        baseAmount: event.params.makerAmountFilled,
+        quoteAmount: event.params.takerAmountFilled,
+        positionId: event.params.makerAssetId,
+      };
 };

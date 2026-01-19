@@ -1,5 +1,6 @@
 import { BigDecimal, FixedProductMarketMakerFactory } from "generated";
 import type { FixedProductMarketMaker_t } from "generated/src/db/Entities.gen";
+import { getCollateralDetails } from "./collateralEffect";
 
 FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.handler(
   async ({ event, context }) => {
@@ -17,7 +18,7 @@ FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.handler(
       "0x8c8BdBE59c1b3eB0DeC4E634F2C6bBaCa2Cd26B6".toLowerCase()
     ) {
       context.log.info(
-        `cannot index market maker ${fixedProductMarketMaker}: using conditional tokens ${conditionalTokens}`
+        `cannot index market maker ${fixedProductMarketMaker}: using conditional tokens ${conditionalTokens}`,
       );
 
       return;
@@ -69,9 +70,19 @@ FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.handler(
     const collateralTokenEntity = await context.Collateral.get(collateralToken);
     if (!collateralTokenEntity) {
       context.log.info(
-        `collateral token ${collateralToken} not found for market maker ${fixedProductMarketMaker}, fetching data...`
+        `collateral token ${collateralToken} not found for market maker ${fixedProductMarketMaker}, fetching data...`,
       );
-      // TODO: implement external call to fetch collateral token data
+      const metadata = await context.effect(
+        getCollateralDetails,
+        collateralToken,
+      );
+
+      context.Collateral.set({
+        id: collateralToken,
+        name: metadata.name,
+        symbol: metadata.symbol,
+        decimals: metadata.decimal,
+      });
     }
 
     for (const conditionId of conditionIds) {
@@ -94,7 +105,7 @@ FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.handler(
     outcomeTokenAmounts = outcomeTokenAmounts.fill(0n);
 
     let outcomeTokenPrices: BigDecimal[] = new Array<BigDecimal>(
-      conditionIds.length
+      conditionIds.length,
     );
     outcomeTokenPrices = outcomeTokenPrices.fill(BigDecimal(0));
 
@@ -106,11 +117,11 @@ FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.handler(
     };
 
     context.FixedProductMarketMaker.set(entity);
-  }
+  },
 );
 
 FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.contractRegister(
   ({ event, context }) => {
     context.addFixedProductMarketMaker(event.params.fixedProductMarketMaker);
-  }
+  },
 );

@@ -1,12 +1,21 @@
 import { BigDecimal, Exchange } from "generated";
-import type { Orderbook_t, OrderFilledEvent_t } from "generated/src/db/Entities.gen";
+import type {
+  Orderbook_t,
+  OrderFilledEvent_t,
+} from "generated/src/db/Entities.gen";
+import { parseOrderFilled, type Order } from "../fpmmHandlers/utils/pnlUtils";
+import { COLLATERAL_SCALE } from "../conditionalTokensHandlers/constants";
+import {
+  updateUserPositionWithBuy,
+  updateUserPositionWithSell,
+} from "../conditionalTokensHandlers/utils";
 
 const BIG_ZERO = 0n;
 const COLLATERAL_SCALE_DEC = new BigDecimal(10).pow(6);
 const ORDERS_MATCHED_GLOBAL_ID = "OrdersMatchedGlobal";
 
 Exchange.OrderFilled.handler(async ({ event, context }) => {
-  BigDecimal
+  BigDecimal;
   const {
     fee,
     maker,
@@ -93,6 +102,29 @@ Exchange.OrderFilled.handler(async ({ event, context }) => {
   };
 
   context.Orderbook.set(updatedOrderbook);
+
+  // https://github.com/Polymarket/polymarket-subgraph/blob/main/pnl-subgraph/src/ExchangeMapping.ts#L23-L44
+
+  const order: Order = parseOrderFilled(event);
+  const price = (order.quoteAmount * COLLATERAL_SCALE) / order.baseAmount;
+
+  if (order.side === "Buy") {
+    updateUserPositionWithBuy(
+      context,
+      order.account as `0x${string}`,
+      order.positionId,
+      price,
+      order.baseAmount,
+    );
+  } else {
+    updateUserPositionWithSell(
+      context,
+      order.account as `0x${string}`,
+      order.positionId,
+      price,
+      order.baseAmount,
+    );
+  }
 });
 
 function getOrderSide(makerAssetId: bigint): "Buy" | "Sell" {
@@ -102,7 +134,7 @@ function getOrderSide(makerAssetId: bigint): "Buy" | "Sell" {
 function getOrderSize(
   makerAmountFilled: bigint,
   takerAmountFilled: bigint,
-  side: "Buy" | "Sell"
+  side: "Buy" | "Sell",
 ): bigint {
   return side === "Buy" ? makerAmountFilled : takerAmountFilled;
 }
@@ -163,7 +195,7 @@ Exchange.OrdersMatched.handler(async ({ event, context }) => {
       ? {
           buysQuantity: existing.buysQuantity + 1n,
           collateralBuyVolume: existing.collateralBuyVolume.plus(
-            size.toString()
+            size.toString(),
           ),
           scaledCollateralBuyVolume:
             existing.scaledCollateralBuyVolume.div(COLLATERAL_SCALE_DEC),
@@ -171,7 +203,7 @@ Exchange.OrdersMatched.handler(async ({ event, context }) => {
       : {
           sellsQuantity: existing.sellsQuantity + 1n,
           collateralSellVolume: existing.collateralSellVolume.plus(
-            size.toString()
+            size.toString(),
           ),
           scaledCollateralSellVolume:
             existing.scaledCollateralSellVolume.div(COLLATERAL_SCALE_DEC),
@@ -201,7 +233,7 @@ async function ensureMarketData(
   context: any,
   id: string,
   conditionId: string,
-  outcomeIndex?: bigint
+  outcomeIndex?: bigint,
 ) {
   const existing = await context.MarketData.get(id);
   if (existing) return;

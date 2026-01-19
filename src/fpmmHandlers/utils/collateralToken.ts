@@ -1,9 +1,17 @@
 import type { HandlerContext } from "generated";
 
-export function getCollateralScale(
+export async function getCollateralScale(
   collateralTokenId: string,
-  context: HandlerContext
-): BigInt {
-  // TODO: fetch collateral token decimals from CollateralToken entity
-  return BigInt(10 ** 18);
+  context: HandlerContext,
+): Promise<bigint> {
+  const collateral = await context.Collateral.get(collateralTokenId);
+
+  if (!collateral) {
+    context.log.error(
+      `collateral token ${collateralTokenId} not found, defaulting scale to 1e18`,
+    );
+    return 10n ** 18n;
+  }
+
+  return 10n ** BigInt(collateral.decimals);
 }

@@ -16,7 +16,7 @@ import {
   updateUserPositionWithBuy,
   updateUserPositionWithSell,
 } from "../conditionalTokensHandlers/utils";
-import { parseFundingAddedSendBack } from "./utils/pnlUtils";
+import { computeFpmmPrice, parseFundingAddedSendBack } from "./utils/pnlUtils";
 
 FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
   let fpmmAddress = event.srcAddress;
@@ -334,6 +334,74 @@ FixedProductMarketMaker.FPMMFundingRemoved.handler(
       collateralRemoved: event.params.collateralRemovedFromFeePool,
       sharesBurnt: event.params.sharesBurnt,
     });
+
+    const conditionId = fpmm.conditions[0];
+    if (!conditionId) {
+      context.log.error(
+        `No condition found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+      );
+      return;
+    }
+    const condition = await context.Condition.get(conditionId);
+    if (!condition) {
+      context.log.error(
+        `Condition ${conditionId} not found for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+      );
+      return;
+    }
+
+    const [a = 0n, b = 0n] = event.params.amountsRemoved ?? [];
+
+    if (a + b === 0n) {
+      context.log.warn(
+        `Zero funding removed in FPMMFundingRemoved event at tx ${event.transaction.hash}`,
+      );
+      return;
+    }
+
+    let tokenCost = 0n;
+
+    for (let i = 0; i < 2; i++) {
+      const positionId = condition.positionIds[i];
+      if (!positionId) {
+        context.log.error(
+          `No position found for outcome index ${i} in condition ${conditionId} for FPMM at address ${fpmmAddress} in tx ${event.transaction.hash}`,
+        );
+        return;
+      }
+
+      const tokenPrice = computeFpmmPrice([a, b], i == 0 ? 0 : 1);
+      const tokenAmount = event.params.amountsRemoved?.[i] ?? 0n;
+      const tokenCost = (tokenPrice * tokenAmount) / COLLATERAL_SCALE;
+
+      updateUserPositionWithBuy(
+        context,
+        event.params.funder,
+        positionId,
+        tokenPrice,
+        tokenAmount,
+      );
+    }
+
+    if (event.params.sharesBurnt == 0n) {
+      context.log.warn(
+        `Zero shares burnt in FPMMFundingRemoved event at tx ${event.transaction.hash}`,
+      );
+      return;
+    }
+
+    const lpSalePrice =
+      ((event.params.collateralRemovedFromFeePool - tokenCost) *
+        COLLATERAL_SCALE) /
+      event.params.sharesBurnt;
+
+    updateUserPositionWithSell(
+      context,
+      event.params.funder,
+      BigInt(fpmmAddress), // Using FPMM address as positionId for LP shares
+      lpSalePrice,
+      event.params.sharesBurnt,
+    );
   },
 );
 
@@ -476,7 +544,8 @@ FixedProductMarketMaker.FPMMFundingAdded.handler(async ({ event, context }) => {
     (sendbackDetails.amount * sendbackDetails.price) / COLLATERAL_SCALE;
 
   const lpShareCost = totalUSDCSpend - tokenCost;
-  const lpShareprice = (lpShareCost * COLLATERAL_SCALE) / event.params.sharesMinted;
+  const lpShareprice =
+    (lpShareCost * COLLATERAL_SCALE) / event.params.sharesMinted;
 
   updateUserPositionWithBuy(
     context,
