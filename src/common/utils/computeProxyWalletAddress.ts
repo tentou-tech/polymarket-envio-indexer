@@ -9,7 +9,7 @@ import {
 
 export function generateProxyWalletBytecode(
   factory: Address,
-  implementation: Address
+  implementation: Address,
 ): Hex {
   const bytecodeHex =
     "0x" +
@@ -27,7 +27,7 @@ export function generateProxyWalletBytecode(
 export function computeProxyWalletAddress(
   signer: Address,
   factory: Address,
-  implementation: Address
+  implementation: Address,
 ): string {
   // salt = keccak256(signer)
   const salt = keccak256(signer);
@@ -36,9 +36,22 @@ export function computeProxyWalletAddress(
   const initCode = generateProxyWalletBytecode(factory, implementation);
   const initCodeHash = keccak256(initCode);
 
-  // CREATE2: keccak256(0xff ++ factory ++ salt ++ initCodeHash)[12:]
-  const packed = concatHex(["0xff", factory, salt, initCodeHash]);
+  const address = computeProxyWalletAddressFromInputs(
+    factory,
+    salt,
+    initCodeHash,
+  );
 
   // last 20 bytes
-  return `0x${keccak256(packed).slice(26)}`;
+  return address;
+}
+
+export function computeProxyWalletAddressFromInputs(
+  factory: Address,
+  salt: `0x${string}`,
+  initCodeHash: `0x${string}`,
+): `0x${string}` {
+  // CREATE2: keccak256(0xff ++ factory ++ salt ++ initCodeHash)[12:]
+  const packed = concatHex(["0xff", factory, salt, initCodeHash]);
+  return `0x${keccak256(packed).slice(26)}`.toLowerCase() as `0x${string}`;
 }

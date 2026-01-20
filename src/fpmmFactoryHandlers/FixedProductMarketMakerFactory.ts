@@ -72,7 +72,7 @@ FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.handler(
       context.log.info(
         `collateral token ${collateralToken} not found for market maker ${fixedProductMarketMaker}, fetching data...`,
       );
-      const metadata = await context.effect(
+      const metadata: string | TokenDetails = await context.effect(
         getCollateralDetails,
         collateralToken,
       );
@@ -125,3 +125,9 @@ FixedProductMarketMakerFactory.FixedProductMarketMakerCreation.contractRegister(
     context.addFixedProductMarketMaker(event.params.fixedProductMarketMaker);
   },
 );
+
+type TokenDetails = {
+  name: string;
+  symbol: string;
+  decimal: number;
+};
