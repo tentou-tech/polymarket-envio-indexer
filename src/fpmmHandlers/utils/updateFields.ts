@@ -1,16 +1,17 @@
 import { BigDecimal /*, TradeType*/ } from "generated";
 import type { FixedProductMarketMaker_t } from "generated/src/db/Entities.gen";
 import { timestampToDay } from "./time";
+import type { Entities } from "generated/envio";
 
 function updateVolumes(
-  fpmm: FixedProductMarketMaker_t,
+  fpmm: Entities["FixedProductMarketMaker"],
   timestamp: number,
   tradeSize: bigint,
   collateralScale: BigDecimal,
-  tradeType: "Buy" | "Sell"
+  tradeType: "Buy" | "Sell",
   // tradeType import from generated is not valid and that is throwing an error
   // but I can see in index files of generated folder that there is a named export for TradeType
-): FixedProductMarketMaker_t {
+): Entities["FixedProductMarketMaker"] {
   fpmm = {
     ...fpmm,
     lastActiveDay:
@@ -21,7 +22,7 @@ function updateVolumes(
 
   let newTradeSize = fpmm.collateralVolume + tradeSize;
   let newTradeSizeScaled = BigDecimal(newTradeSize.toString()).div(
-    collateralScale
+    collateralScale,
   );
 
   fpmm = {
@@ -33,7 +34,7 @@ function updateVolumes(
   if (tradeType === "Buy") {
     let newBuySize = fpmm.collateralBuyVolume + tradeSize;
     let newBuySizeScaled = BigDecimal(newBuySize.toString()).div(
-      collateralScale
+      collateralScale,
     );
     fpmm = {
       ...fpmm,
@@ -43,7 +44,7 @@ function updateVolumes(
   } else if (tradeType === "Sell") {
     let newSellSize = fpmm.collateralSellVolume + tradeSize;
     let newSellSizeScaled = BigDecimal(newSellSize.toString()).div(
-      collateralScale
+      collateralScale,
     );
     fpmm = {
       ...fpmm,
@@ -56,10 +57,10 @@ function updateVolumes(
 }
 
 function updateFeeFields(
-  fpmm: FixedProductMarketMaker_t,
+  fpmm: Entities["FixedProductMarketMaker"],
   feeAmount: bigint,
-  collateralScale: BigDecimal
-): FixedProductMarketMaker_t {
+  collateralScale: BigDecimal,
+): Entities["FixedProductMarketMaker"] {
   const newFeeVolume = fpmm.feeVolume + feeAmount;
 
   return {
@@ -70,15 +71,15 @@ function updateFeeFields(
 }
 
 function updateLiquidityFields(
-  fpmm: FixedProductMarketMaker_t,
+  fpmm: Entities["FixedProductMarketMaker"],
   liquidityParameter: bigint,
-  collateralScale: BigDecimal
-): FixedProductMarketMaker_t {
+  collateralScale: BigDecimal,
+): Entities["FixedProductMarketMaker"] {
   return {
     ...fpmm,
     liquidityParameter: liquidityParameter,
     scaledLiquidityParameter: BigDecimal(liquidityParameter.toString()).div(
-      collateralScale
+      collateralScale,
     ),
   };
 }

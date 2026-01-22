@@ -19,30 +19,22 @@ import {
 import { computeFpmmPrice, parseFundingAddedSendBack } from "./utils/pnlUtils";
 import type { Entities } from "generated/envio";
 
-type DeepMutable<T> = {
-  -readonly [K in keyof T]: T[K] extends readonly (infer U)[]
-    ? DeepMutable<U>[]
-    : T[K] extends object
-      ? DeepMutable<T[K]>
-      : T[K];
-};
-
 FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
   let fpmmAddress = event.srcAddress;
-  let entity = await context.FixedProductMarketMaker.get(fpmmAddress);
-  if (!entity) {
+  let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
+  if (!fpmm) {
     context.log.error(
       `cannot buy: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
     );
     return;
   }
 
-  let fpmm: DeepMutable<Entities["FixedProductMarketMaker"]> = {
-    ...entity,
-    conditions: [...entity.conditions],
-    outcomeTokenAmounts: [...entity.outcomeTokenAmounts],
-    outcomeTokenPrices: [...entity.outcomeTokenPrices],
-  };
+  // let fpmm: DeepMutable<Entities["FixedProductMarketMaker"]> = {
+  //   ...entity,
+  //   conditions: [...entity.conditions],
+  //   outcomeTokenAmounts: [...entity.outcomeTokenAmounts],
+  //   outcomeTokenPrices: [...entity.outcomeTokenPrices],
+  // };
 
   let oldAmounts = fpmm.outcomeTokenAmounts;
   let investmentAmountMinusFees =
@@ -158,20 +150,13 @@ FixedProductMarketMaker.FPMMBuy.handler(async ({ event, context }) => {
 
 FixedProductMarketMaker.FPMMSell.handler(async ({ event, context }) => {
   let fpmmAddress = event.srcAddress;
-  let entity = await context.FixedProductMarketMaker.get(fpmmAddress);
-  if (!entity) {
+  let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
+  if (!fpmm) {
     context.log.error(
       `cannot sell: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
     );
     return;
   }
-
-  let fpmm: DeepMutable<Entities["FixedProductMarketMaker"]> = {
-    ...entity,
-    conditions: [...entity.conditions],
-    outcomeTokenAmounts: [...entity.outcomeTokenAmounts],
-    outcomeTokenPrices: [...entity.outcomeTokenPrices],
-  };
 
   let oldAmounts = fpmm.outcomeTokenAmounts;
   let returnAmountPlusFees = event.params.returnAmount + event.params.feeAmount;
@@ -286,20 +271,13 @@ FixedProductMarketMaker.FPMMSell.handler(async ({ event, context }) => {
 FixedProductMarketMaker.FPMMFundingRemoved.handler(
   async ({ event, context }) => {
     let fpmmAddress = event.srcAddress;
-    let entity = await context.FixedProductMarketMaker.get(fpmmAddress);
-    if (!entity) {
+    let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
+    if (!fpmm) {
       context.log.error(
         `cannot remove funding: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
       );
       return;
     }
-
-    let fpmm: DeepMutable<Entities["FixedProductMarketMaker"]> = {
-      ...entity,
-      conditions: [...entity.conditions],
-      outcomeTokenAmounts: [...entity.outcomeTokenAmounts],
-      outcomeTokenPrices: [...entity.outcomeTokenPrices],
-    };
 
     let oldAmounts = fpmm.outcomeTokenAmounts;
     let amountsRemoved = event.params.amountsRemoved;
@@ -437,20 +415,20 @@ FixedProductMarketMaker.FPMMFundingRemoved.handler(
 
 FixedProductMarketMaker.FPMMFundingAdded.handler(async ({ event, context }) => {
   let fpmmAddress = event.srcAddress;
-  let entity = await context.FixedProductMarketMaker.get(fpmmAddress);
-  if (!entity) {
+  let fpmm = await context.FixedProductMarketMaker.get(fpmmAddress);
+  if (!fpmm) {
     context.log.error(
       `cannot add funding: FixedProductMarketMaker instance for ${fpmmAddress} not found`,
     );
     return;
   }
 
-  let fpmm: DeepMutable<Entities["FixedProductMarketMaker"]> = {
-    ...entity,
-    conditions: [...entity.conditions],
-    outcomeTokenAmounts: [...entity.outcomeTokenAmounts],
-    outcomeTokenPrices: [...entity.outcomeTokenPrices],
-  };
+  // let fpmm: DeepMutable<Entities["FixedProductMarketMaker"]> = {
+  //   ...entity,
+  //   conditions: [...entity.conditions],
+  //   outcomeTokenAmounts: [...entity.outcomeTokenAmounts],
+  //   outcomeTokenPrices: [...entity.outcomeTokenPrices],
+  // };
 
   let oldAmounts = fpmm.outcomeTokenAmounts;
   let amountsAdded = event.params.amountsAdded;
