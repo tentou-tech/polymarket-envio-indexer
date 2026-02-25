@@ -23,7 +23,8 @@
   "dependencies": {
     "envio": "2.32.3",
     "ethers": "^6.16.0",
-    "viem": "^2.46.3"
+    "viem": "^2.46.3",
+    "vitest": "^4.0.18"
   },
   "optionalDependencies": {
     "generated": "./generated"
