@@ -1,10 +1,10 @@
-import { RelayHub } from "generated";
+import { RelayHub } from 'generated';
 import {
   PROXY_WALLET_FACTORY,
   PROXY_WALLET_IMPLEMENTATION,
-} from "../common/constants";
-import { computeProxyWalletAddress } from "../common/utils/computeProxyWalletAddress";
-import type { Wallet_t } from "generated/src/db/Entities.gen";
+} from '../common/constants';
+import { computeProxyWalletAddress } from '../common/utils/computeProxyWalletAddress';
+import type { Wallet_t } from 'generated/src/db/Entities.gen';
 
 RelayHub.TransactionRelayed.handler(async ({ event, context }) => {
   if (event.params.to == PROXY_WALLET_FACTORY.toLowerCase()) {
@@ -14,7 +14,7 @@ RelayHub.TransactionRelayed.handler(async ({ event, context }) => {
   const walletAddress = computeProxyWalletAddress(
     event.params.from as `0x${string}`,
     PROXY_WALLET_FACTORY,
-    PROXY_WALLET_IMPLEMENTATION
+    PROXY_WALLET_IMPLEMENTATION,
   );
 
   const wallet = await context.Wallet.get(walletAddress);
@@ -24,7 +24,7 @@ RelayHub.TransactionRelayed.handler(async ({ event, context }) => {
     const newWallet: Wallet_t = {
       id: walletAddress,
       signer: event.params.from,
-      walletType: "Proxy",
+      walletType: 'Proxy',
       balance: BigInt(0),
       lastTransfer: 0,
       createdAt: event.block.timestamp,
