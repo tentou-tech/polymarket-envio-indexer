@@ -1,15 +1,15 @@
 {
-  "name": "polymarket-indexer",
+  "name": "envio-indexer",
   "version": "0.1.0",
   "scripts": {
     "clean": "tsc --clean",
     "build": "tsc --build",
     "watch": "tsc --watch",
-    "mocha": "tsc --noEmit && NODE_OPTIONS='--no-warnings --import tsx' mocha --exit test/**/*.ts",
+    "mocha": "ts-mocha test/**/*.ts",
     "codegen": "envio codegen",
     "dev": "envio dev",
     "start": "envio start",
-    "test": "vitest run"
+    "test": "pnpm mocha"
   },
   "devDependencies": {
     "@types/chai": "^4.3.11",
@@ -17,19 +17,17 @@
     "@types/node": "20.8.8",
     "chai": "4.3.10",
     "mocha": "10.2.0",
-    "tsx": "4.21.0",
-    "typescript": "^5.7.3",
-    "vitest": "4.0.16"
+    "ts-mocha": "^10.0.0",
+    "typescript": "5.2.2"
   },
   "dependencies": {
-    "envio": "3.0.0-alpha.10",
-    "viem": "^2.43.2"
+    "envio": "2.32.3",
+    "ethers": "^6.16.0"
   },
   "optionalDependencies": {
     "generated": "./generated"
   },
-  "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=18.0.0"
   }
 }
